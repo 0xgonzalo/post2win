@@ -33,7 +33,7 @@ export default function CreateCampaignPage() {
         watch,
         setValue,
     } = useForm<CampaignSchema>({
-        resolver: zodResolver(campaignSchema),
+        resolver: zodResolver(campaignSchema) as any,
         defaultValues: {
             prizeBreakdown: [{ place: 1, percentage: 100 }],
             allowedTypes: ["image"],

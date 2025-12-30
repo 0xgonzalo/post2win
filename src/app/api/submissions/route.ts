@@ -95,7 +95,6 @@ export async function GET(req: Request) {
                 ...(userId && { userId }),
             },
             orderBy: [
-                { voteCount: "desc" },
                 { createdAt: "desc" },
             ],
             include: {
@@ -105,9 +104,6 @@ export async function GET(req: Request) {
                         name: true,
                         avatar: true,
                     },
-                },
-                _count: {
-                    select: { votes: true },
                 },
             },
         });
