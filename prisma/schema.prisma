@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== USER ====================
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  avatar        String?
+  role          Role      @default(USER)
+  stripeAccountId String? // For payouts via Stripe Connect
+  createdAt     DateTime  @default(now())
+  
+  // Relations
+  campaigns     Campaign[]    @relation("CampaignCreator")
+  submissions   Submission[]
+  payouts       Payout[]
+}
+
+enum Role {
+  USER
+  CREATOR
+  ADMIN
+}
+
+// ==================== CAMPAIGN ====================
+model Campaign {
+  id              String    @id @default(cuid())
+  title           String
+  slug            String    @unique
+  description     String
+  coverImage      String
+  eventName       String
+  eventDate       DateTime
+  eventLocation   String
+  category        String    // Music, Sports, Festival, etc.
+  
+  // Prize Configuration
+  prizePool       Decimal   @db.Decimal(10, 2)
+  prizeBreakdown  Json      // { "1st": 50, "2nd": 30, "3rd": 20 }
+  currency        String    @default("USD")
+  
+  // Submission Rules
+  maxSubmissions  Int       @default(3)
+  allowedTypes    String[]  // ["image", "video"]
+  maxFileSize     Int       @default(50) // MB
+  
+  // Timeline
+  startDate       DateTime
+  endDate         DateTime
+  votingEndDate   DateTime
+  
+  // Payment
+  stripePaymentId String?
+  isPaid          Boolean   @default(false)
+  
+  status          CampaignStatus @default(DRAFT)
+  
+  // Relations
+  creatorId       String
+  creator         User      @relation("CampaignCreator", fields: [creatorId], references: [id])
+  submissions     Submission[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([status])
+  @@index([creatorId])
+}
+
+enum CampaignStatus {
+  DRAFT
+  PENDING_PAYMENT
+  ACTIVE
+  VOTING
+  COMPLETED
+  CANCELLED
+}
+
+// ==================== SUBMISSION ====================
+model Submission {
+  id          String    @id @default(cuid())
+  mediaUrl    String
+  mediaType   MediaType
+  thumbnail   String?
+  title       String?
+  description String?
+  
+  // Relations
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  campaignId  String
+  campaign    Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  
+  // Scoring & Awards
+  isWinner    Boolean   @default(false)
+  winnerPlace Int?      // 1 = 1st place, 2 = 2nd place, etc.
+  prizeAmount Decimal?  @db.Decimal(10, 2)
+  
+  createdAt   DateTime  @default(now())
+
+  @@index([campaignId])
+  @@index([userId])
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+// ==================== PAYMENTS ====================
+model Payout {
+  id              String    @id @default(cuid())
+  amount          Decimal   @db.Decimal(10, 2)
+  currency        String    @default("USD")
+  status          PayoutStatus @default(PENDING)
+  stripePayoutId  String?
+  stripeTransferId String?
+  
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  
+  createdAt       DateTime  @default(now())
+  processedAt     DateTime?
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
